@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kepler Bench — Two-Body Orbit Workbench</title>
+<style>
+:root{
+  --paper:#f4f0e6; --card:#fffdf7; --ink:#1c2333; --muted:#6b6f7b; --line:#e3dccb; --line2:#d6ccb5;
+  --b1:#c2410c; --b2:#0f766e; --acc:#1e40af; --good:#15803d; --bad:#b91c1c;
+  --mono:"JetBrains Mono","DejaVu Sans Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:Inter,"Segoe UI",system-ui,sans-serif;background:var(--paper);color:var(--ink);font-size:13px;overflow:hidden}
+header{height:58px;display:flex;align-items:center;gap:18px;padding:0 18px;border-bottom:1px solid var(--line2);background:var(--card)}
+.brand{display:flex;align-items:center;gap:10px}
+.brand b{font-size:18px;letter-spacing:-.3px}
+.brand span{color:var(--muted);font-size:12px;border-left:1px solid var(--line2);padding-left:10px}
+.hstats{margin-left:auto;display:flex;gap:14px;align-items:center;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.hstats b{color:var(--ink);font-weight:600}
+.badge{font-family:Inter,system-ui,sans-serif;font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:#dcfce7;color:#166534;border:1px solid #bbf7d0}
+.badge.unbound{background:#fee2e2;color:#991b1b;border-color:#fecaca}
+.badge.hit{background:#fef3c7;color:#92400e;border-color:#fde68a}
+.hbtns{display:flex;gap:6px}
+button{font:inherit;cursor:pointer;border:1px solid var(--line2);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 11px;font-weight:500}
+button:hover{border-color:var(--ink)}
+button.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+main{display:grid;grid-template-columns:286px 1fr 318px;height:calc(100% - 58px)}
+aside{overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+#left{border-right:1px solid var(--line2)}
+#right{border-left:1px solid var(--line2)}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 12px;transition:box-shadow .3s,border-color .3s}
+section.flash{border-color:var(--acc);box-shadow:0 0 0 3px rgba(30,64,175,.15)}
+h3{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:8px;display:flex;justify-content:space-between}
+h3 i{font-style:normal;font-weight:500;text-transform:none;letter-spacing:0}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chips button{font-size:11.5px;padding:4px 9px;border-radius:99px}
+.chips button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.row{margin:5px 0 6px}
+.row .lab{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
+.row .lab output{font-family:var(--mono);font-size:11.5px;color:var(--acc)}
+input[type=range]{width:100%;accent-color:var(--ink);height:16px}
+input.b1{accent-color:var(--b1)} input.b2{accent-color:var(--b2)}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1px solid var(--line2);border-radius:8px;overflow:hidden;margin:4px 0 8px}
+.seg button{border:0;border-radius:0;font-size:11px;padding:6px 2px;border-right:1px solid var(--line2)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--ink);color:#fff}
+.tg{display:grid;grid-template-columns:1fr 1fr;gap:5px 8px}
+.tg label{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer}
+.tg input{accent-color:var(--ink)}
+.hint{font-size:11px;color:var(--muted);line-height:1.45;margin-top:4px}
+#center{display:flex;flex-direction:column;min-width:0}
+#stage{position:relative;flex:1;min-height:0}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+#legend{position:absolute;left:14px;top:12px;background:rgba(255,253,247,.92);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:11.5px;display:none}
+#legend div{display:flex;align-items:center;gap:7px;margin:2px 0;font-family:var(--mono);font-size:11px}
+#legend i{width:14px;height:3px;border-radius:2px;display:inline-block}
+#frameTag{position:absolute;right:14px;top:12px;font-size:11px;color:var(--muted);background:rgba(255,253,247,.9);border:1px solid var(--line);border-radius:99px;padding:3px 10px}
+#caption{position:absolute;left:50%;bottom:18px;transform:translate(-50%,10px);background:var(--ink);color:#fff;border-radius:12px;padding:11px 18px;max-width:78%;opacity:0;transition:opacity .45s,transform .45s;pointer-events:none;box-shadow:0 10px 30px rgba(28,35,51,.25)}
+#caption.show{opacity:1;transform:translate(-50%,0)}
+#caption b{display:block;font-size:16px;margin-bottom:2px}
+#caption span{font-size:12.5px;color:#cbd5e1}
+#chartWrap{height:178px;border-top:1px solid var(--line2);background:var(--card);display:flex;flex-direction:column}
+.tabs{display:flex;gap:4px;padding:7px 12px 0;align-items:center}
+.tabs button{font-size:11px;padding:3px 10px;border-radius:99px}
+.tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.tabs span{margin-left:auto;font-size:11px;color:var(--muted)}
+#chart{flex:1;width:100%;min-height:0;display:block}
+.kv{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:12px}
+.kv span{color:var(--muted)}
+.kv b{font-family:var(--mono);font-weight:500;font-size:11.5px;text-align:right}
+.kv hr{grid-column:1/3;border:0;border-top:1px dashed var(--line2);margin:3px 0}
+#ueff{width:100%;height:178px;display:block}
+#areas{font-family:var(--mono);font-size:11px;display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+#areas div{background:var(--paper);border-radius:6px;padding:4px;text-align:center}
+#areas div.alt{background:#e0e7ff}
+.overlay{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 40%,#fffdf7 0%,#efe9da 75%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20;transition:opacity .6s;text-align:center}
+.overlay.hide{opacity:0;pointer-events:none}
+.overlay h1{font-size:64px;letter-spacing:-2px;font-weight:800}
+.overlay h1 em{font-style:normal;color:var(--b1)}
+.overlay p{font-size:20px;color:var(--muted);margin-top:8px}
+.overlay small{font-family:var(--mono);font-size:14px;color:var(--acc);margin-top:22px;display:block}
+.orbitlogo{margin-bottom:26px}
+#help{position:fixed;inset:0;background:rgba(28,35,51,.35);display:none;align-items:center;justify-content:center;z-index:30}
+#help.show{display:flex}
+#help .box{background:var(--card);border-radius:16px;max-width:820px;padding:24px 28px;display:grid;grid-template-columns:1fr 1fr;gap:16px 28px;font-size:13px;line-height:1.55;position:relative}
+#help h4{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--b1);margin-bottom:4px}
+#help code{font-family:var(--mono);font-size:12px;background:var(--paper);padding:1px 4px;border-radius:4px}
+#help .x{position:absolute;right:14px;top:12px}
+#help .keys{grid-column:1/3;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 30 30"><ellipse cx="15" cy="15" rx="13" ry="7" fill="none" stroke="#1c2333" stroke-width="1.4" transform="rotate(-25 15 15)"/><circle cx="11" cy="16.5" r="4.2" fill="#c2410c"/><circle cx="25" cy="9" r="2.4" fill="#0f766e"/></svg>
+    <b>Kepler Bench</b><span>a two-body orbit workbench</span>
+  </div>
+  <div class="hstats">
+    <span>t = <b id="hT">0.0</b></span>
+    <span>steps <b id="hS">0</b></span>
+    <span id="badge" class="badge">bound · ellipse</span>
+  </div>
+  <div class="hbtns">
+    <button id="playB" class="primary">❚❚ Pause</button>
+    <button id="stepB">Step ›</button>
+    <button id="resetB">↺ Reset</button>
+    <button id="helpB">? Physics</button>
+  </div>
+</header>
+<main>
+<aside id="left">
+  <section id="secPreset"><h3>Scenario</h3><div class="chips" id="presets"></div></section>
+  <section id="secBodies"><h3>Bodies <i>G = 1</i></h3><div id="slBodies"></div></section>
+  <section id="secLaunch"><h3>Launch</h3><div id="slLaunch"></div>
+    <div class="hint">Body 2 starts at distance d along +x. 1.00 × v<sub>c</sub> gives a circle, √2 × v<sub>c</sub> just escapes.</div></section>
+  <section id="secNum"><h3>Numerics</h3>
+    <div class="seg" id="segInteg"></div>
+    <div id="slNum"></div>
+    <div class="tg"><label style="grid-column:1/3"><input type="checkbox" id="tg_compare"> Race all four integrators</label></div>
+  </section>
+  <section id="secView"><h3>View</h3>
+    <div class="seg" id="segFrame"></div>
+    <div class="tg">
+      <label><input type="checkbox" id="tg_trails" checked> Trails</label>
+      <label><input type="checkbox" id="tg_kepler"> Equal areas</label>
+      <label><input type="checkbox" id="tg_vel" checked> Velocity</label>
+      <label><input type="checkbox" id="tg_force"> Force</label>
+      <label><input type="checkbox" id="tg_com" checked> COM marker</label>
+      <label><input type="checkbox" id="tg_grid" checked> Grid</label>
+    </div>
+  </section>
+</aside>
+<div id="center">
+  <div id="stage"><canvas id="cv"></canvas><div id="legend"></div><div id="frameTag">frame: centre of mass</div><div id="caption"><b></b><span></span></div></div>
+  <div id="chartWrap">
+    <div class="tabs" id="tabs"><button data-v="energy" class="on">Energy</button><button data-v="error">Energy error (log)</button><button data-v="sep">Separation r(t)</button><span id="chartNote"></span></div>
+    <canvas id="chart"></canvas>
+  </div>
+</div>
+<aside id="right">
+  <section id="secEl"><h3>Orbit elements <i>relative orbit</i></h3>
+    <div class="kv">
+      <span>Separation r</span><b id="o_r">–</b>
+      <span>Relative speed |v|</span><b id="o_v">–</b>
+      <span>Eccentricity e</span><b id="o_e">–</b>
+      <span>Semi-major axis a</span><b id="o_a">–</b>
+      <span>Period T</span><b id="o_T">–</b>
+      <span>Periapsis / apoapsis</span><b id="o_pa">–</b>
+      <hr>
+      <span>Kinetic K</span><b id="o_K">–</b>
+      <span>Potential U</span><b id="o_U">–</b>
+      <span>Total E</span><b id="o_E">–</b>
+      <span>Ang. momentum L</span><b id="o_L">–</b>
+      <span>ΔE / E₀</span><b id="o_dE">–</b>
+      <span>ΔL / L₀</span><b id="o_dL">–</b>
+    </div>
+  </section>
+  <section id="secU"><h3>Effective potential <i>U<sub>eff</sub>(r)</i></h3>
+    <canvas id="ueff"></canvas>
+    <div class="hint">U<sub>eff</sub> = −μ/r + h²/2r². The dot is the current r on the energy line; shading marks where motion is allowed.</div>
+  </section>
+  <section id="secA"><h3>Equal areas <i id="aNote">Δt = –</i></h3>
+    <div id="areas"><div style="grid-column:1/5;background:none;color:var(--muted);font-family:Inter,system-ui">Turn on “Equal areas” to measure swept area per interval.</div></div>
+  </section>
+</aside>
+</main>
+
+<div id="card" class="overlay hide">
+  <svg class="orbitlogo" width="150" height="90" viewBox="0 0 150 90"><ellipse cx="75" cy="45" rx="68" ry="30" fill="none" stroke="#1c2333" stroke-width="1.6" stroke-dasharray="4 5"/><circle cx="60" cy="45" r="14" fill="#c2410c"/><circle cx="141" cy="40" r="7" fill="#0f766e"/></svg>
+  <h1 id="cardH">Kepler <em>Bench</em></h1>
+  <p id="cardP">An interactive two-body orbit workbench</p>
+  <small id="cardS">Newtonian gravity · four integrators raced · Kepler's laws · effective potential · reference frames</small>
+</div>
+
+<div id="help"><div class="box">
+  <button class="x" id="helpX">✕</button>
+  <div><h4>Model</h4>Two point masses attract with <code>F = G m₁m₂ / r²</code> along the line joining them. Internal forces only, so total momentum and angular momentum are conserved and the centre of mass drifts at constant velocity.</div>
+  <div><h4>Reduction to one body</h4>The relative vector <code>r = r₂ − r₁</code> obeys <code>r̈ = −μ r / r³</code> with <code>μ = G(m₁+m₂)</code>. That is a single Kepler problem; each body traces a scaled copy of it about the COM.</div>
+  <div><h4>Orbit type from energy</h4>Specific energy <code>ε = v²/2 − μ/r</code>: ε &lt; 0 ellipse, ε = 0 parabola, ε &gt; 0 hyperbola. Eccentricity <code>e = √(1 + 2εh²/μ²)</code>, period <code>T = 2π√(a³/μ)</code>.</div>
+  <div><h4>Integrators</h4>Explicit Euler (1st order, not symplectic) gains energy; symplectic Euler and velocity Verlet keep the energy error bounded; RK4 is 4th order but slowly drifts. Race them at a large Δt to see the difference.</div>
+  <div class="keys">Keys: <code>Space</code> pause · <code>S</code> step · <code>R</code> reset · <code>1/2/3</code> frame COM / body 1 / lab · <code>C</code> race integrators · <code>K</code> equal areas</div>
+</div></div>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const DEMO=/[?&]demo/.test(location.search);
+const P={m1:100,m2:10,d0:40,f:1,alpha:0,drift:0,G:1,dt:0.05,warp:25,integ:'verlet',frame:'com',
+  trails:true,kepler:false,vel:true,force:false,com:true,grid:true,compare:false};
+const INTEG={
+  euler:{name:'Explicit Euler',short:'Euler',color:'#dc2626'},
+  symp:{name:'Symplectic Euler',short:'Sympl.',color:'#d97706'},
+  verlet:{name:'Velocity Verlet',short:'Verlet',color:'#1e40af'},
+  rk4:{name:'Runge–Kutta 4',short:'RK4',color:'#7c3aed'}};
+const FRAMES={com:'centre of mass',body1:'body 1 (relative orbit)',lab:'lab (inertial, fixed)'};
+const R=m=>0.85*Math.cbrt(m);
+
+// ---------- physics ----------
+function accel(s,o){const dx=s[2]-s[0],dy=s[3]-s[1],d2=dx*dx+dy*dy,d=Math.sqrt(d2),k=P.G/(d2*d);
+  o[0]=k*P.m2*dx;o[1]=k*P.m2*dy;o[2]=-k*P.m1*dx;o[3]=-k*P.m1*dy;return o;}
+const A=new Float64Array(4);
+function deriv(s){const a=accel(s,new Float64Array(4));return Float64Array.of(s[4],s[5],s[6],s[7],a[0],a[1],a[2],a[3]);}
+const STEP={
+  euler(s,h){accel(s,A);for(let i=0;i<4;i++){s[i]+=s[i+4]*h;s[i+4]+=A[i]*h;}},
+  symp(s,h){accel(s,A);for(let i=0;i<4;i++){s[i+4]+=A[i]*h;s[i]+=s[i+4]*h;}},
+  verlet(s,h){accel(s,A);for(let i=0;i<4;i++){s[i+4]+=.5*h*A[i];s[i]+=h*s[i+4];}accel(s,A);for(let i=0;i<4;i++)s[i+4]+=.5*h*A[i];},
+  rk4(s,h){const k1=deriv(s),t=new Float64Array(8);
+    for(let i=0;i<8;i++)t[i]=s[i]+.5*h*k1[i];const k2=deriv(t);
+    for(let i=0;i<8;i++)t[i]=s[i]+.5*h*k2[i];const k3=deriv(t);
+    for(let i=0;i<8;i++)t[i]=s[i]+h*k3[i];const k4=deriv(t);
+    for(let i=0;i<8;i++)s[i]+=h/6*(k1[i]+2*k2[i]+2*k3[i]+k4[i]);}
+};
+function initState(){const M=P.m1+P.m2,vc=Math.sqrt(P.G*M/P.d0),vm=P.f*vc,al=P.alpha*Math.PI/180;
+  const vx=vm*Math.sin(al),vy=vm*Math.cos(al);
+  return Float64Array.of(-P.m2/M*P.d0,0,P.m1/M*P.d0,0,-P.m2/M*vx+P.drift,-P.m2/M*vy,P.m1/M*vx+P.drift,P.m1/M*vy);}
+function energy(s){const dx=s[2]-s[0],dy=s[3]-s[1],d=Math.hypot(dx,dy);
+  const K=.5*P.m1*(s[4]*s[4]+s[5]*s[5])+.5*P.m2*(s[6]*s[6]+s[7]*s[7]);const U=-P.G*P.m1*P.m2/d;return {K,U,E:K+U};}
+function angmom(s){return P.m1*(s[0]*s[5]-s[1]*s[4])+P.m2*(s[2]*s[7]-s[3]*s[6]);}
+function elements(s){const mu=P.G*(P.m1+P.m2),rx=s[2]-s[0],ry=s[3]-s[1],vx=s[6]-s[4],vy=s[7]-s[5];
+  const r=Math.hypot(rx,ry),v2=vx*vx+vy*vy,eps=v2/2-mu/r,h=rx*vy-ry*vx;
+  const e=Math.sqrt(Math.max(0,1+2*eps*h*h/(mu*mu)));const p=h*h/mu;
+  const a=eps<0?-mu/(2*eps):Infinity,T=eps<0?2*Math.PI*Math.sqrt(a*a*a/mu):Infinity;
+  const rp=p/(1+e),ra=eps<0?p/(1-e):Infinity;return {mu,r,v:Math.sqrt(v2),eps,h,e,a,T,rp,ra};}
+
+// ---------- simulation state ----------
+let sims=[],hist=[],wedge=null,running=true,acc=0,contact=null,view={cx:0,cy:0,s:4,init:false};
+function newSim(key){const s=initState();const en=energy(s);return {key,s,t:0,steps:0,alive:true,E0:en.E,L0:angmom(s),trail:[]};}
+function reset(){
+  const keys=P.compare?['euler','symp','verlet','rk4']:[P.integ];
+  if(P.compare){keys.splice(keys.indexOf(P.integ),1);keys.unshift(P.integ);}
+  sims=keys.map(newSim);hist=[];acc=0;contact=null;view.init=false;
+  const el=elements(sims[0].s);const span=isFinite(el.T)?el.T/16:Math.max(4,P.d0/8);
+  wedge={every:Math.max(1,Math.round(span/P.dt)),dtw:Math.max(1,Math.round(span/P.dt))*P.dt,groups:[],cur:[],areas:[]};
+  record();updateLegend();updateReadouts();
+}
+function refOf(x1,y1,x2,y2,f){if(f==='com'){const M=P.m1+P.m2;return [(P.m1*x1+P.m2*x2)/M,(P.m1*y1+P.m2*y2)/M];}
+  if(f==='body1')return [x1,y1];return [0,0];}
+function stepAll(n){
+  for(const sm of sims){if(!sm.alive)continue;const f=STEP[sm.key];
+    for(let k=0;k<n;k++){f(sm.s,P.dt);sm.t+=P.dt;sm.steps++;
+      const s=sm.s,d=Math.hypot(s[2]-s[0],s[3]-s[1]);
+      if(sm===sims[0]&&P.kepler)wedgeRec(s,sm.steps);
+      if(d<R(P.m1)+R(P.m2)){sm.alive=false;if(sm===sims[0])contact={t:sm.t,x:(s[0]+s[2])/2,y:(s[1]+s[3])/2,age:0};break;}
+      if(d>60*P.d0){sm.alive=false;break;}
+    }
+    const s=sm.s;sm.trail.push([s[0],s[1],s[2],s[3]]);if(sm.trail.length>1400)sm.trail.shift();
+  }
+  record();
+}
+function wedgeRec(s,steps){const M=P.m1+P.m2,cx=(P.m1*s[0]+P.m2*s[2])/M,cy=(P.m1*s[1]+P.m2*s[3])/M;
+  const pt=[s[2]-cx,s[3]-cy,s[2]-s[0],s[3]-s[1]];wedge.cur.push(pt);
+  if(steps%wedge.every===0){const g=wedge.cur;
+    let A1=0;for(let i=0;i<g.length-1;i++)A1+=.5*(g[i][2]*g[i+1][3]-g[i+1][2]*g[i][3]);
+    wedge.groups.push(g);wedge.areas.push(Math.abs(A1));wedge.cur=[pt];
+    if(wedge.groups.length>16){wedge.groups.shift();wedge.areas.shift();}}}
+function record(){const t=sims[0].t,row={t,errs:[]};
+  const en=energy(sims[0].s);row.K=en.K;row.U=en.U;row.E=en.E;row.r=Math.hypot(sims[0].s[2]-sims[0].s[0],sims[0].s[3]-sims[0].s[1]);
+  for(const sm of sims){const e=energy(sm.s).E;row.errs.push(Math.abs((e-sm.E0)/sm.E0)||1e-17);}
+  hist.push(row);if(hist.length>900)hist.shift();}
+
+// ---------- UI construction ----------
+const sliders={};
+function slider(host,key,label,min,max,step,fmt,cls,onch){
+  const d=document.createElement('div');d.className='row';
+  d.innerHTML=`<div class="lab"><span>${label}</span><output></output></div><input type="range" min="${min}" max="${max}" step="${step}" class="${cls||''}">`;
+  const inp=d.querySelector('input'),out=d.querySelector('output');
+  inp.addEventListener('input',()=>{P[key]=+inp.value;out.textContent=fmt(P[key]);(onch||reset)();clearPreset();});
+  host.appendChild(d);sliders[key]={inp,out,fmt};}
+const f0=v=>v.toFixed(0),f2=v=>v.toFixed(2),f3=v=>v.toFixed(3);
+slider($('slBodies'),'m1','Mass m₁',1,200,1,f0,'b1');
+slider($('slBodies'),'m2','Mass m₂',1,200,1,f0,'b2');
+slider($('slLaunch'),'d0','Initial separation d',10,80,1,f0);
+slider($('slLaunch'),'f','Launch speed (× v_c)',0,1.8,0.01,f2);
+slider($('slLaunch'),'alpha','Launch angle from tangent',-60,60,1,v=>v.toFixed(0)+'°');
+slider($('slLaunch'),'drift','COM drift velocity vₓ',-1,1,0.05,f2);
+slider($('slNum'),'dt','Time step Δt',0.005,0.5,0.005,f3);
+slider($('slNum'),'warp','Time warp (units / s)',1,60,1,f0,'',()=>{});
+function seg(host,key,items,onch){host.innerHTML='';for(const [v,l] of items){const b=document.createElement('button');b.textContent=l;b.dataset.v=v;
+  b.onclick=()=>{P[key]=v;syncUI();onch();};host.appendChild(b);}}
+seg($('segInteg'),'integ',Object.entries(INTEG).map(([k,o])=>[k,o.short]),reset);
+seg($('segFrame'),'frame',[['com','COM'],['body1','Body 1'],['lab','Lab']],()=>{view.init=false;});
+for(const k of ['trails','kepler','vel','force','com','grid','compare']){const c=$('tg_'+k);
+  c.onchange=()=>{P[k]=c.checked;if(k==='compare'){reset();setTab(P.compare?'error':chartMode);}if(k==='kepler')reset();};}
+const PRESETS={
+  circular:{label:'Circular',m1:100,m2:10,d0:40,f:1,alpha:0,drift:0,dt:0.05,warp:25},
+  elliptical:{label:'Elliptical',m1:100,m2:10,d0:40,f:0.72,alpha:0,drift:0,dt:0.05,warp:22},
+  binary:{label:'Equal-mass binary',m1:60,m2:60,d0:40,f:0.85,alpha:0,drift:0,dt:0.05,warp:25},
+  drift:{label:'Drifting COM',m1:80,m2:30,d0:36,f:0.9,alpha:0,drift:0.45,dt:0.05,warp:25},
+  tilted:{label:'Off-tangent launch',m1:100,m2:15,d0:40,f:0.95,alpha:35,drift:0,dt:0.05,warp:25},
+  escape:{label:'Hyperbolic escape',m1:100,m2:10,d0:30,f:1.6,alpha:20,drift:0,dt:0.05,warp:20},
+  plunge:{label:'Radial plunge',m1:100,m2:40,d0:60,f:0,alpha:0,drift:0,dt:0.02,warp:14},
+  race:{label:'Integrator race',m1:100,m2:10,d0:40,f:0.6,alpha:0,drift:0,dt:0.25,warp:16,compare:true},
+};
+let curPreset='circular';
+for(const [k,o] of Object.entries(PRESETS)){const b=document.createElement('button');b.textContent=o.label;b.dataset.v=k;b.onclick=()=>preset(k);$('presets').appendChild(b);}
+function clearPreset(){curPreset=null;syncUI();}
+function preset(k){const o=PRESETS[k];curPreset=k;for(const key of ['m1','m2','d0','f','alpha','drift','dt','warp'])P[key]=o[key];
+  P.compare=!!o.compare;if(P.compare)setTab('error');syncUI();reset();}
+function syncUI(){for(const [k,s] of Object.entries(sliders)){s.inp.value=P[k];s.out.textContent=s.fmt(P[k]);}
+  for(const b of $('presets').children)b.classList.toggle('on',b.dataset.v===curPreset);
+  for(const b of $('segInteg').children)b.classList.toggle('on',b.dataset.v===P.integ);
+  for(const b of $('segFrame').children)b.classList.toggle('on',b.dataset.v===P.frame);
+  for(const k of ['trails','kepler','vel','force','com','grid','compare'])$('tg_'+k).checked=P[k];
+  $('frameTag').textContent='frame: '+FRAMES[P.frame];}
+let chartMode='energy';
+function setTab(v){chartMode=v;for(const b of $('tabs').querySelectorAll('button'))b.classList.toggle('on',b.dataset.v===v);}
+for(const b of $('tabs').querySelectorAll('button'))b.onclick=()=>setTab(b.dataset.v);
+function updateLegend(){const L=$('legend');if(!P.compare){L.style.display='none';return;}L.style.display='block';
+  L.innerHTML='<div style="font-family:Inter,system-ui;font-weight:600;margin-bottom:3px">Same Δt = '+P.dt+'</div>'+
+  sims.map((s,i)=>`<div><i style="background:${INTEG[s.key].color}"></i>${INTEG[s.key].name.padEnd(17,' ')}<span id="lg${i}"></span></div>`).join('');}
+$('playB').onclick=()=>setRun(!running);
+$('stepB').onclick=()=>{setRun(false);stepAll(1);};
+$('resetB').onclick=reset;
+$('helpB').onclick=()=>$('help').classList.add('show');$('helpX').onclick=()=>$('help').classList.remove('show');
+function setRun(v){running=v;$('playB').textContent=v?'❚❚ Pause':'▶ Play';}
+addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'&&e.target.type!=='checkbox')return;
+  const k=e.key.toLowerCase();if(k===' '){e.preventDefault();setRun(!running);}else if(k==='s'){setRun(false);stepAll(1);}
+  else if(k==='r')reset();else if('123'.includes(k)&&k){P.frame=['com','body1','lab'][+k-1];view.init=false;syncUI();}
+  else if(k==='c'){P.compare=!P.compare;syncUI();reset();setTab(P.compare?'error':'energy');}
+  else if(k==='k'){P.kepler=!P.kepler;syncUI();reset();}});
+
+// ---------- rendering ----------
+const cv=$('cv'),ctx=cv.getContext('2d'),ch=$('chart'),cx2=ch.getContext('2d'),ue=$('ueff'),cx3=ue.getContext('2d');
+let W=0,H=0;
+function fit(c,g){const r=c.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+  if(c.width!==Math.round(r.width*dpr)||c.height!==Math.round(r.height*dpr)){c.width=Math.round(r.width*dpr);c.height=Math.round(r.height*dpr);}
+  g.setTransform(dpr,0,0,dpr,0,0);return [r.width,r.height];}
+const w2s=(x,y)=>[W/2+(x-view.cx)*view.s,H/2-(y-view.cy)*view.s];
+function frameXY(p){const r=refOf(p[0],p[1],p[2],p[3],P.frame);return [p[0]-r[0],p[1]-r[1],p[2]-r[0],p[3]-r[1]];}
+function niceStep(x){const p=Math.pow(10,Math.floor(Math.log10(x))),m=x/p;return (m<2?2:m<5?5:10)*p;}
+function arrow(x,y,dx,dy,col,lw){const L=Math.hypot(dx,dy);if(L<3)return;const ux=dx/L,uy=dy/L;
+  ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=lw;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+dx-ux*7,y+dy-uy*7);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x+dx,y+dy);ctx.lineTo(x+dx-ux*9-uy*4.5,y+dy-uy*9+ux*4.5);ctx.lineTo(x+dx-ux*9+uy*4.5,y+dy-uy*9-ux*4.5);ctx.closePath();ctx.fill();}
+function body(x,y,r,col,label){const g=ctx.createRadialGradient(x-r*.35,y-r*.35,r*.1,x,y,r);g.addColorStop(0,'#fff');g.addColorStop(.25,col);g.addColorStop(1,shade(col));
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();ctx.strokeStyle='rgba(28,35,51,.55)';ctx.lineWidth=1;ctx.stroke();
+  if(label){ctx.fillStyle='#1c2333';ctx.font='600 12px Inter,system-ui';ctx.fillText(label,x+r+5,y-r-2);}}
+function shade(hex){const n=parseInt(hex.slice(1),16);return `rgb(${(n>>16)*.55|0},${(n>>8&255)*.55|0},${(n&255)*.55|0})`;}
+function draw(){
+  [W,H]=fit(cv,ctx);ctx.clearRect(0,0,W,H);
+  const main=sims[0];
+  // camera: bbox of main trail in current frame
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;const tr=main.trail.length?main.trail:[Array.from(main.s.slice(0,4))];
+  const n=tr.length,stepI=Math.max(1,n/300|0);
+  for(let i=0;i<n;i+=stepI){const q=frameXY(tr[i]);for(let j=0;j<4;j+=2){x0=Math.min(x0,q[j]);x1=Math.max(x1,q[j]);y0=Math.min(y0,q[j+1]);y1=Math.max(y1,q[j+1]);}}
+  const q=frameXY(main.s);for(let j=0;j<4;j+=2){x0=Math.min(x0,q[j]);x1=Math.max(x1,q[j]);y0=Math.min(y0,q[j+1]);y1=Math.max(y1,q[j+1]);}
+  if(P.frame!=='lab'){x0=Math.min(x0,0);x1=Math.max(x1,0);y0=Math.min(y0,0);y1=Math.max(y1,0);}
+  const span=Math.max(x1-x0,(y1-y0)*W/H,P.d0*1.1),ts=Math.min(W/(span*1.35),H/(Math.max(y1-y0,P.d0*.6)*1.45)),tcx=(x0+x1)/2,tcy=(y0+y1)/2;
+  if(!view.init){view.s=ts;view.cx=tcx;view.cy=tcy;view.init=true;}
+  else{view.s+=(ts-view.s)*.06;view.cx+=(tcx-view.cx)*.08;view.cy+=(tcy-view.cy)*.08;}
+  // grid
+  if(P.grid){const st=niceStep(28/view.s),[wx0,wy1]=[view.cx-W/2/view.s,view.cy+H/2/view.s],[wx1,wy0]=[view.cx+W/2/view.s,view.cy-H/2/view.s];
+    ctx.lineWidth=1;for(let pass=0;pass<2;pass++){ctx.strokeStyle=pass?'rgba(28,35,51,.11)':'rgba(28,35,51,.045)';ctx.beginPath();const sp=pass?st*5:st;
+      for(let x=Math.ceil(wx0/sp)*sp;x<wx1;x+=sp){const X=w2s(x,0)[0];ctx.moveTo(X,0);ctx.lineTo(X,H);}
+      for(let y=Math.ceil(wy0/sp)*sp;y<wy1;y+=sp){const Y=w2s(0,y)[1];ctx.moveTo(0,Y);ctx.lineTo(W,Y);}ctx.stroke();}
+    ctx.fillStyle='rgba(28,35,51,.4)';ctx.font='10px '+getComputedStyle(document.body).getPropertyValue('--mono');ctx.fillText('grid '+st*5+' units',10,H-10);}
+  // equal-area wedges
+  if(P.kepler&&P.frame!=='lab'&&wedge){const off=P.frame==='com'?0:2,O=w2s(0,0);
+    const all=[...wedge.groups,wedge.cur];
+    all.forEach((g,gi)=>{if(g.length<2)return;const idx=wedge.groups.length-all.length+1+gi;ctx.beginPath();ctx.moveTo(O[0],O[1]);
+      const sk=Math.max(1,g.length/80|0);for(let i=0;i<g.length;i+=sk){const p=w2s(g[i][off],g[i][off+1]);ctx.lineTo(p[0],p[1]);}
+      const l=w2s(g[g.length-1][off],g[g.length-1][off+1]);ctx.lineTo(l[0],l[1]);ctx.closePath();
+      const alt=(wedge.areas.length+gi)%2;ctx.fillStyle=gi===all.length-1?'rgba(194,65,12,.18)':alt?'rgba(30,64,175,.16)':'rgba(15,118,110,.14)';ctx.fill();
+      ctx.strokeStyle='rgba(28,35,51,.18)';ctx.lineWidth=.8;ctx.stroke();});}
+  // trails
+  if(P.trails)for(const sm of sims){const t=sm.trail;if(t.length<2)continue;const isMain=sm===main;
+    const cols=P.compare?[null,INTEG[sm.key].color]:['#c2410c','#0f766e'];
+    for(let b=0;b<2;b++){if(!cols[b])continue;if(P.frame==='body1'&&b===0)continue;
+      const chunks=12;for(let c=0;c<chunks;c++){const a=Math.floor(c*t.length/chunks),z=Math.min(t.length-1,Math.floor((c+1)*t.length/chunks));
+        ctx.strokeStyle=cols[b];ctx.globalAlpha=.12+.78*(c+1)/chunks;ctx.lineWidth=P.compare?(isMain?2.2:1.7):1.8;ctx.beginPath();
+        for(let i=a;i<=z;i++){const f=frameXY(t[i]),p=w2s(f[2*b],f[2*b+1]);i===a?ctx.moveTo(p[0],p[1]):ctx.lineTo(p[0],p[1]);}ctx.stroke();}
+      ctx.globalAlpha=1;}}
+  // COM marker
+  if(P.com){const s=main.s,M=P.m1+P.m2,r=refOf(s[0],s[1],s[2],s[3],P.frame),c=w2s((P.m1*s[0]+P.m2*s[2])/M-r[0],(P.m1*s[1]+P.m2*s[3])/M-r[1]);
+    ctx.strokeStyle='#1c2333';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(c[0],c[1],6,0,7);ctx.moveTo(c[0]-10,c[1]);ctx.lineTo(c[0]+10,c[1]);ctx.moveTo(c[0],c[1]-10);ctx.lineTo(c[0],c[1]+10);ctx.stroke();
+    ctx.fillStyle='#1c2333';ctx.beginPath();ctx.moveTo(c[0],c[1]);ctx.arc(c[0],c[1],6,0,Math.PI/2);ctx.arc(c[0],c[1],6,Math.PI,1.5*Math.PI);ctx.fill();
+    ctx.font='10px Inter,system-ui';ctx.fillText('COM',c[0]+9,c[1]+15);}
+  // bodies
+  const vc=Math.sqrt(P.G*(P.m1+P.m2)/P.d0),Fc=P.G*P.m1*P.m2/(P.d0*P.d0),vk=P.d0*.3*view.s/vc;
+  for(let si=sims.length-1;si>=0;si--){const sm=sims[si],f=frameXY(sm.s),isMain=si===0;if(!isMain&&!P.compare)continue;
+    const p1=w2s(f[0],f[1]),p2=w2s(f[2],f[3]);const r1=Math.max(6,R(P.m1)*view.s),r2=Math.max(4,R(P.m2)*view.s);
+    if(P.compare&&!isMain){ctx.globalAlpha=.85;ctx.fillStyle=INTEG[sm.key].color;ctx.beginPath();ctx.arc(p2[0],p2[1],Math.max(3.5,r2*.8),0,7);ctx.fill();ctx.globalAlpha=1;continue;}
+    const s=sm.s,rv=P.frame==='body1'?[s[4],s[5]]:P.frame==='com'?[(P.m1*s[4]+P.m2*s[6])/(P.m1+P.m2),(P.m1*s[5]+P.m2*s[7])/(P.m1+P.m2)]:[0,0];
+    if(P.vel){arrow(p1[0],p1[1],(s[4]-rv[0])*vk,-(s[5]-rv[1])*vk,'#334155',1.6);arrow(p2[0],p2[1],(s[6]-rv[0])*vk,-(s[7]-rv[1])*vk,'#334155',1.6);}
+    if(P.force){accel(s,A);const fk=P.d0*.3*view.s/Fc;arrow(p1[0],p1[1],A[0]*P.m1*fk,-A[1]*P.m1*fk,'#b91c1c',2.2);arrow(p2[0],p2[1],A[2]*P.m2*fk,-A[3]*P.m2*fk,'#b91c1c',2.2);}
+    body(p1[0],p1[1],r1,'#c2410c','m₁');body(p2[0],p2[1],r2,P.compare?INTEG[sm.key].color:'#0f766e','m₂');}
+  if(contact){contact.age++;const s=main.s,f=frameXY(s),p=w2s((f[0]+f[2])/2,(f[1]+f[3])/2),rr=10+contact.age*1.4;
+    if(contact.age<60){ctx.strokeStyle=`rgba(185,28,28,${1-contact.age/60})`;ctx.lineWidth=3;ctx.beginPath();ctx.arc(p[0],p[1],rr,0,7);ctx.stroke();}
+    ctx.fillStyle='#b91c1c';ctx.font='600 13px Inter,system-ui';ctx.fillText('contact at t = '+contact.t.toFixed(1),p[0]-50,p[1]+rr+22>p[1]+70?p[1]+70:p[1]+70);}
+  drawChart();drawUeff();
+}
+function drawChart(){const [w,h]=fit(ch,cx2);cx2.clearRect(0,0,w,h);if(hist.length<2)return;
+  const L=44,Rr=12,T=8,B=20,pw=w-L-Rr,ph=h-T-B,t0=hist[0].t,t1=hist[hist.length-1].t||1;
+  let series=[],log=false,note='';
+  if(chartMode==='energy'){series=[['K','#c2410c','kinetic K'],['U','#0f766e','potential U'],['E','#1c2333','total E']];note='K ↑ when the bodies fall together, U ↑ when they separate — E stays flat';}
+  else if(chartMode==='sep'){series=[['r','#1e40af','separation r']];note='r(t) oscillates between periapsis and apoapsis for a bound orbit';}
+  else{log=true;series=sims.map((s,i)=>[i,INTEG[s.key].color,INTEG[s.key].name]);note='log₁₀ |ΔE/E₀| — lower is better';}
+  $('chartNote').textContent=note;
+  const get=(row,k)=>log?Math.log10(Math.max(row.errs[k],1e-16)):row[k];
+  let lo=1e18,hi=-1e18;for(const row of hist)for(const s of series){const v=get(row,s[0]);if(isFinite(v)){lo=Math.min(lo,v);hi=Math.max(hi,v);}}
+  if(log){lo=Math.floor(Math.max(lo,-16));hi=Math.ceil(Math.max(hi,lo+1));}const pad=(hi-lo)*.08||1;if(!log){lo-=pad;hi+=pad;}
+  const X=t=>L+(t-t0)/(t1-t0||1)*pw,Y=v=>T+(1-(v-lo)/(hi-lo))*ph;
+  cx2.font='10px Inter,system-ui';cx2.fillStyle='#6b6f7b';cx2.strokeStyle='#ece6d6';cx2.lineWidth=1;
+  for(let i=0;i<=4;i++){const v=lo+(hi-lo)*i/4,y=Y(v);cx2.beginPath();cx2.moveTo(L,y);cx2.lineTo(w-Rr,y);cx2.stroke();cx2.fillText(log?('1e'+v.toFixed(0)):(Math.abs(v)>=1000?v.toExponential(1):v.toFixed(Math.abs(v)<10?2:0)),4,y+3);}
+  cx2.fillText('t = '+t0.toFixed(0),L,h-5);cx2.fillText('t = '+t1.toFixed(0),w-Rr-50,h-5);
+  for(const s of series){cx2.strokeStyle=s[1];cx2.lineWidth=s[0]==='E'?2.2:1.6;cx2.beginPath();let st=false;
+    for(const row of hist){const v=get(row,s[0]);if(!isFinite(v))continue;const x=X(row.t),y=Math.max(T,Math.min(T+ph,Y(v)));st?cx2.lineTo(x,y):cx2.moveTo(x,y);st=true;}cx2.stroke();}
+  let lx=L+8;for(const s of series){cx2.fillStyle=s[1];cx2.fillRect(lx,T+3,10,3);cx2.fillStyle='#1c2333';cx2.fillText(s[2],lx+14,T+8);lx+=cx2.measureText(s[2]).width+30;}
+}
+function drawUeff(){const [w,h]=fit(ue,cx3);cx3.clearRect(0,0,w,h);const el=elements(sims[0].s),{mu,h:hh,eps,r}=el;
+  const rmax=Math.max(isFinite(el.ra)?el.ra*1.6:r*2.2,P.d0*1.6,r*1.3),rmin=rmax/60;
+  const U=x=>-mu/x+hh*hh/(2*x*x);let lo=Math.min(eps,hh?-mu*mu/(2*hh*hh):-mu/rmin*.25),hi=Math.max(eps,0)+Math.abs(lo)*.6;lo*=1.25;if(lo>=hi)hi=lo+1;
+  const L=8,Rr=8,T=8,B=16,pw=w-L-Rr,ph=h-T-B,X=x=>L+(x-0)/rmax*pw,Y=v=>T+(1-(v-lo)/(hi-lo))*ph;
+  cx3.strokeStyle='#d6ccb5';cx3.lineWidth=1;cx3.beginPath();cx3.moveTo(L,Y(0));cx3.lineTo(w-Rr,Y(0));cx3.stroke();
+  // allowed region
+  cx3.fillStyle='rgba(30,64,175,.10)';let inR=false,x0=0;for(let i=0;i<=300;i++){const x=rmin+(rmax-rmin)*i/300,ok=U(x)<=eps;
+    if(ok&&!inR){inR=true;x0=x;}if((!ok||i===300)&&inR){inR=false;cx3.fillRect(X(x0),T,X(x)-X(x0),ph);}}
+  cx3.strokeStyle='#1c2333';cx3.lineWidth=2;cx3.beginPath();let st=false;
+  for(let i=0;i<=300;i++){const x=rmin+(rmax-rmin)*i/300,v=U(x);if(v>hi+(hi-lo)){st=false;continue;}const y=Math.max(T-2,Math.min(T+ph,Y(v)));st?cx3.lineTo(X(x),y):cx3.moveTo(X(x),y);st=true;}cx3.stroke();
+  cx3.setLineDash([5,4]);cx3.strokeStyle='#c2410c';cx3.lineWidth=1.5;cx3.beginPath();cx3.moveTo(L,Y(eps));cx3.lineTo(w-Rr,Y(eps));cx3.stroke();cx3.setLineDash([]);
+  const px=Math.min(X(r),w-Rr);cx3.fillStyle='#0f766e';cx3.beginPath();cx3.arc(px,Y(eps),5,0,7);cx3.fill();
+  cx3.strokeStyle='rgba(15,118,110,.4)';cx3.beginPath();cx3.moveTo(px,Y(eps));cx3.lineTo(px,Math.min(T+ph,Y(U(r))));cx3.stroke();
+  cx3.font='10px Inter,system-ui';cx3.fillStyle='#c2410c';cx3.fillText('E (specific) = '+eps.toFixed(3),L+4,Y(eps)-6);
+  cx3.fillStyle='#6b6f7b';cx3.fillText('r →',w-Rr-20,h-4);cx3.fillText('0',L,h-4);
+  if(isFinite(el.ra)&&el.e>0.02){cx3.fillText('r_p',X(el.rp)-6,h-4);cx3.fillText('r_a',X(el.ra)-6,h-4);}}
+let rdTick=0;
+function fmt(v,d=2){if(!isFinite(v))return '∞';const a=Math.abs(v);return a!==0&&(a>=1e5||a<1e-3)?v.toExponential(2):v.toFixed(d);}
+function updateReadouts(){const sm=sims[0],el=elements(sm.s),en=energy(sm.s),Lm=angmom(sm.s);
+  $('o_r').textContent=fmt(el.r);$('o_v').textContent=fmt(el.v,3);$('o_e').textContent=fmt(el.e,4);
+  $('o_a').textContent=isFinite(el.a)?fmt(el.a):(el.eps>0?fmt(-el.mu/(2*el.eps))+' (hyp.)':'∞');$('o_T').textContent=fmt(el.T);
+  $('o_pa').textContent=fmt(el.rp,1)+' / '+fmt(el.ra,1);
+  $('o_K').textContent=fmt(en.K);$('o_U').textContent=fmt(en.U);$('o_E').textContent=fmt(en.E);$('o_L').textContent=fmt(Lm);
+  const dE=(en.E-sm.E0)/Math.abs(sm.E0),dL=sm.L0?(Lm-sm.L0)/Math.abs(sm.L0):0;
+  $('o_dE').textContent=dE.toExponential(2);$('o_dE').style.color=Math.abs(dE)>1e-3?'#b91c1c':'#15803d';
+  $('o_dL').textContent=sm.L0?dL.toExponential(2):'0 (L = 0)';
+  $('hT').textContent=sm.t.toFixed(1);$('hS').textContent=sm.steps;
+  const b=$('badge');if(!sm.alive&&contact){b.textContent='collision';b.className='badge hit';}
+  else if(el.eps<0){b.textContent='bound · '+(el.e<0.02?'circle':el.e>0.995?'radial':'ellipse e='+el.e.toFixed(2));b.className='badge';}
+  else{b.textContent='unbound · '+(Math.abs(el.e-1)<0.01?'parabola':'hyperbola');b.className='badge unbound';}
+  if(P.compare)sims.forEach((s,i)=>{const e=$('lg'+i);if(e)e.textContent=' ΔE/E₀ '+hist[hist.length-1].errs[i].toExponential(1);});
+  if(P.kepler&&wedge){$('aNote').textContent='Δt = '+wedge.dtw.toFixed(2)+' each';
+    const ar=wedge.areas.slice(-8);$('areas').innerHTML=ar.length?ar.map((a,i)=>`<div class="${(wedge.areas.length-ar.length+i)%2?'alt':''}">${a.toFixed(1)}</div>`).join(''):'<div style="grid-column:1/5;background:none">measuring…</div>';}
+  else{$('aNote').textContent='';$('areas').innerHTML='<div style="grid-column:1/5;background:none;color:var(--muted);font-family:Inter,system-ui">Turn on “Equal areas” to measure swept area per interval.</div>';}
+}
+function frame(realDt){
+  if(running){acc+=P.warp*realDt;let n=Math.floor(acc/P.dt);acc-=n*P.dt;n=Math.min(n,6000);if(n>0)stepAll(n);}
+  draw();if(++rdTick%2===0||DEMO)updateReadouts();}
+
+// ---------- captions / demo ----------
+let capT=null;
+function cap(t,s){const c=$('caption');c.querySelector('b').textContent=t;c.querySelector('span').textContent=s;c.classList.add('show');}
+function uncap(){$('caption').classList.remove('show');}
+function flash(id){const e=$(id);e.classList.add('flash');setTimeout(()=>e.classList.remove('flash'),2600);}
+function card(h,p,s,show){$('cardH').innerHTML=h;$('cardP').textContent=p;$('cardS').textContent=s;$('card').classList.toggle('hide',!show);}
+const SCRIPT=[
+ [0.0,()=>{card('Kepler <em>Bench</em>','An interactive two-body orbit workbench',"Newtonian gravity · four integrators raced · Kepler's laws · effective potential · reference frames",true);}],
+ [4.2,()=>{card('','','',false);preset('circular');flash('secPreset');}],
+ [5.0,()=>cap('Circular orbit','Launch at exactly v_c = √(G(m₁+m₂)/d): the separation never changes')],
+ [11.5,()=>{flash('secEl');cap('Live orbit elements','e ≈ 0, period T = 2π√(a³/μ); energy and angular momentum checked every frame');}],
+ [17.0,()=>{preset('elliptical');flash('secLaunch');cap('Elliptical orbit','Launch slower than v_c (0.72×): the bodies fall inward and swing back out');}],
+ [23.5,()=>{P.kepler=true;syncUI();reset();flash('secA');cap("Kepler's second law","Each wedge spans the same Δt — the measured areas are equal");}],
+ [34.0,()=>{flash('secU');cap('Effective potential','The motion is trapped between the turning points where E = U_eff(r)');}],
+ [42.0,()=>{P.force=true;P.kepler=false;syncUI();reset();cap("Newton's third law",'Red arrows: forces on the two bodies are always equal and opposite');}],
+ [50.0,()=>{P.force=false;preset('race');flash('secNum');cap('Integrator race (same Δt = 0.25)','Explicit Euler pumps in energy and spirals out; symplectic schemes stay bounded');}],
+ [60.0,()=>{flash('chartWrap');cap('Energy error on a log scale','Euler grows without limit; Verlet oscillates; RK4 is tiny but slowly drifts');}],
+ [67.0,()=>{P.compare=false;preset('binary');setTab('energy');cap('Equal-mass binary','Both stars orbit the centre of mass, which sits exactly halfway between them');}],
+ [74.0,()=>{P.frame='body1';view.init=false;syncUI();flash('secView');cap('Switching reference frame','Seen from body 1, the same motion is one Kepler ellipse of the relative vector');}],
+ [81.0,()=>{preset('drift');P.frame='lab';view.init=false;syncUI();cap('Drifting centre of mass','Lab frame: with no external force the COM moves in a straight line');}],
+ [89.0,()=>{preset('escape');P.frame='com';view.init=false;syncUI();setTab('sep');cap('Hyperbolic escape','1.6 × v_c > √2 × v_c, so E > 0: one close pass and they never return');}],
+ [97.0,()=>{preset('plunge');setTab('energy');cap('Radial plunge','Released from rest, L = 0: a straight-line fall until the surfaces touch');}],
+ [106.0,()=>{uncap();card('Try it <em>yourself</em>','Pick a scenario, drag the sliders, race the integrators.','kepler-bench.html — a single file, runs offline in any browser',true);}],
+];
+if(DEMO){let vt=0,si=0;
+  window.advance=(n,fps)=>{for(let k=0;k<n;k++){while(si<SCRIPT.length&&SCRIPT[si][0]<=vt+1e-9){SCRIPT[si][1]();si++;}
+    frame(1/fps);vt+=1/fps;}return vt;};
+  window.demoLength=111;
+}
+syncUI();reset();
+if(!DEMO){let last=performance.now();(function loop(now){frame(Math.min(.05,(now-last)/1000));last=now;requestAnimationFrame(loop);})(last);}
+</script>
+</body>
+</html>
